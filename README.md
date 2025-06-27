@@ -399,8 +399,6 @@ cargo clippy
 
 - **Issues**: [GitHub Issues](https://github.com/your-username/live-player/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-username/live-player/discussions)
-- **Email**: your-email@example.com
-
 ---
 
 ⭐ 如果这个项目对您有帮助，请给我们一个 Star！

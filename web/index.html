@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏直播观看端</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9em;
+        }
+
+        input[type="text"], select {
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            min-width: 200px;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            padding: 12px 25px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #videoElement {
+            width: 100%;
+            height: auto;
+            min-height: 400px;
+            display: block;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            font-size: 1.2em;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-label {
+            font-size: 0.8em;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .connection-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .status-disconnected {
+            background: #fee;
+            color: #c53030;
+        }
+
+        .status-connecting {
+            background: #fef5e7;
+            color: #d69e2e;
+        }
+
+        .status-connected {
+            background: #f0fff4;
+            color: #38a169;
+        }
+
+        .logs {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-timestamp {
+            color: #888;
+        }
+
+        .log-error {
+            color: #ff6b6b;
+        }
+
+        .log-info {
+            color: #4ecdc4;
+        }
+
+        .log-debug {
+            color: #ffe66d;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .input-group {
+                width: 100%;
+            }
+
+            input[type="text"], select, button {
+                min-width: auto;
+                width: 100%;
+            }
+
+            .status {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 游戏直播观看端</h1>
+        
+        <div class="controls">
+            <div class="input-group">
+                <label for="streamKey">直播流密钥</label>
+                <input type="text" id="streamKey" placeholder="输入直播流密钥" value="test_stream">
+            </div>
+            
+            <div class="input-group">
+                <label for="serverUrl">服务器地址</label>
+                <input type="text" id="serverUrl" placeholder="ws://localhost:8080" value="ws://localhost:8080">
+            </div>
+            
+            <div class="input-group">
+                <label for="protocol">观看协议</label>
+                <select id="protocol">
+                    <option value="webrtc">WebRTC (低延迟)</option>
+                    <option value="hls">HLS (兼容性好)</option>
+                </select>
+            </div>
+            
+            <button id="connectBtn" onclick="toggleConnection()">连接</button>
+        </div>
+
+        <div class="status">
+            <div class="status-item">
+                <div class="status-label">连接状态</div>
+                <div class="connection-status status-disconnected" id="connectionStatus">未连接</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">观看者数量</div>
+                <div class="status-value" id="viewerCount">-</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">延迟</div>
+                <div class="status-value" id="latency">-</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">码率</div>
+                <div class="status-value" id="bitrate">-</div>
+            </div>
+        </div>
+
+        <div class="video-container">
+            <video id="videoElement" controls autoplay muted playsinline></video>
+            <div class="video-overlay" id="videoOverlay">
+                <div>等待视频流...</div>
+            </div>
+        </div>
+
+        <div class="logs" id="logs">
+            <div class="log-entry">
+                <span class="log-timestamp">[系统]</span> 
+                <span class="log-info">观看端已就绪，请输入直播流密钥并点击连接</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="webrtc-client.js"></script>
+</body>
+</html>

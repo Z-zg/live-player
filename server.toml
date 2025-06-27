@@ -1,0 +1,47 @@
+# 游戏直播服务器配置文件
+
+[rtmp]
+bind_addr = "0.0.0.0"
+port = 1935
+chunk_size = 4096
+max_connections = 100
+
+[webrtc]
+# DTLS 证书配置 (可选，用于生产环境)
+# dtls_cert_path = "/path/to/cert.pem"
+# dtls_key_path = "/path/to/key.pem"
+
+[[webrtc.ice_servers]]
+urls = ["stun:stun.l.google.com:19302"]
+
+[[webrtc.ice_servers]]
+urls = ["stun:stun1.l.google.com:19302"]
+
+# TURN 服务器配置 (可选，用于 NAT 穿透)
+# [[webrtc.ice_servers]]
+# urls = ["turn:your-turn-server.com:3478"]
+# username = "your-username"
+# credential = "your-password"
+
+[http]
+bind_addr = "0.0.0.0"
+port = 8080
+static_dir = "./web"
+cors_enabled = true
+
+[auth]
+enabled = false  # 设置为 true 启用认证
+valid_stream_keys = [
+    "test_stream",
+    "demo_stream",
+    "game_stream_001"
+]
+# jwt_secret = "your-jwt-secret-key"  # JWT 密钥 (可选)
+
+[storage]
+hls_segment_dir = "./hls"
+hls_segment_duration = 6  # 秒
+hls_playlist_length = 10  # 片段数量
+
+dash_segment_dir = "./dash"
+dash_segment_duration = 6  # 秒

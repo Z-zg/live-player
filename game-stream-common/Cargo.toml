@@ -1,0 +1,30 @@
+[package]
+name = "game-stream-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+uuid = { workspace = true }
+
+# RTMP protocol support
+rml_rtmp = "0.8"
+
+# WebRTC support
+webrtc = "0.10"
+
+# Audio/Video codec support (暂时注释掉，避免编译问题)
+# ffmpeg-next = "7.0"
+
+# Date/time support
+chrono = { version = "0.4", features = ["serde"] }
+
+# Network utilities
+futures = "0.3"
+async-trait = "0.1"

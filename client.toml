@@ -1,0 +1,62 @@
+# 游戏直播客户端配置文件
+
+[server]
+protocol = "Rtmp"  # 推流协议: "Rtmp", "Srt", "Custom"
+host = "localhost"
+port = 1935
+stream_key = "test_stream"
+app_name = "live"  # RTMP 应用名称
+
+[stream]
+title = "我的游戏直播"
+description = "高质量游戏直播"
+auto_reconnect = true
+reconnect_interval = 5  # 重连间隔(秒)
+max_reconnect_attempts = 10
+
+[capture]
+capture_cursor = true
+
+[capture.video_source]
+# 屏幕捕获
+Screen = { display_index = 0 }
+
+# 窗口捕获 (替代选项)
+# Window = { window_title = "游戏窗口标题" }
+
+# 区域捕获 (替代选项)
+# Region = { x = 0, y = 0, width = 1920, height = 1080 }
+
+[capture.audio_source]
+# 默认音频设备
+Default = {}
+
+# 指定音频设备 (替代选项)
+# Device = { device_name = "扬声器 (Realtek Audio)" }
+
+# 禁用音频 (替代选项)
+# Disabled = {}
+
+[encoding]
+hardware_acceleration = true
+
+[encoding.video]
+codec = "H264"
+width = 1920
+height = 1080
+fps = 30
+bitrate = 2500  # kbps
+keyframe_interval = 2  # 秒
+preset = "fast"  # "ultrafast", "fast", "medium", "slow"
+
+[encoding.audio]
+codec = "Aac"
+sample_rate = 44100
+channels = 2
+bitrate = 128  # kbps
+
+[network]
+connection_timeout = 10  # 秒
+read_timeout = 30
+write_timeout = 30
+buffer_size = 65536

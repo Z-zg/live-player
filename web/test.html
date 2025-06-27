@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC 连接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.connecting { background-color: #d1ecf1; color: #0c5460; }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .log-entry.error { color: #dc3545; }
+        .log-entry.warning { color: #ffc107; }
+        .log-entry.info { color: #17a2b8; }
+        .log-entry.debug { color: #6c757d; }
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            background-color: #000;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 WebRTC 连接测试</h1>
+        
+        <div class="form-group">
+            <label for="serverUrl">服务器地址:</label>
+            <input type="text" id="serverUrl" value="ws://localhost:8080/ws" placeholder="ws://localhost:8080/ws">
+        </div>
+        
+        <div class="form-group">
+            <label for="streamKey">流密钥:</label>
+            <input type="text" id="streamKey" value="test_stream_123" placeholder="输入流密钥">
+        </div>
+        
+        <div class="form-group">
+            <label for="protocol">播放协议:</label>
+            <select id="protocol">
+                <option value="webrtc">WebRTC (低延迟)</option>
+                <option value="hls">HLS (兼容性)</option>
+            </select>
+        </div>
+        
+        <button id="connectBtn" onclick="toggleConnection()">连接</button>
+        
+        <div id="status" class="status disconnected">未连接</div>
+        
+        <video id="videoElement" controls muted autoplay playsinline>
+            您的浏览器不支持视频播放
+        </video>
+        
+        <div class="form-group">
+            <label>连接日志:</label>
+            <div id="logContainer" class="log"></div>
+        </div>
+        
+        <div class="form-group">
+            <button onclick="clearLog()">清空日志</button>
+            <button onclick="testConnection()">测试连接</button>
+            <button onclick="sendTestSignal()">发送测试信令</button>
+        </div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let peerConnection = null;
+        let isConnected = false;
+
+        function log(level, message) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${level}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(`[${level.toUpperCase()}] ${message}`);
+        }
+
+        function updateStatus(status) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = `status ${status}`;
+            switch(status) {
+                case 'disconnected':
+                    statusElement.textContent = '未连接';
+                    break;
+                case 'connecting':
+                    statusElement.textContent = '连接中...';
+                    break;
+                case 'connected':
+                    statusElement.textContent = '已连接';
+                    break;
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+
+        async function testConnection() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            log('info', `测试连接到: ${serverUrl}`);
+            
+            try {
+                const httpUrl = serverUrl.replace('ws://', 'http://').replace('/ws', '');
+                const response = await fetch(`${httpUrl}/api/streams`);
+                if (response.ok) {
+                    const data = await response.json();
+                    log('info', `服务器响应: ${JSON.stringify(data)}`);
+                } else {
+                    log('error', `HTTP 错误: ${response.status}`);
+                }
+            } catch (error) {
+                log('error', `连接测试失败: ${error.message}`);
+            }
+        }
+
+        function sendTestSignal() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const testSignal = {
+                    Offer: {
+                        stream_key: document.getElementById('streamKey').value,
+                        sdp: "test-sdp-content"
+                    }
+                };
+                websocket.send(JSON.stringify(testSignal));
+                log('debug', `发送测试信令: ${JSON.stringify(testSignal)}`);
+            } else {
+                log('error', 'WebSocket 未连接');
+            }
+        }
+
+        async function connectWebRTC() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const streamKey = document.getElementById('streamKey').value;
+
+            log('info', '开始 WebRTC 连接...');
+            updateStatus('connecting');
+
+            try {
+                // 连接 WebSocket
+                websocket = new WebSocket(serverUrl);
+                
+                websocket.onopen = () => {
+                    log('info', 'WebSocket 连接已建立');
+                };
+
+                websocket.onmessage = async (event) => {
+                    try {
+                        const signal = JSON.parse(event.data);
+                        log('debug', `接收信令: ${JSON.stringify(signal)}`);
+                        
+                        if (signal.Answer) {
+                            await peerConnection.setRemoteDescription({
+                                type: 'answer',
+                                sdp: signal.Answer.sdp
+                            });
+                            log('info', '设置远程描述完成');
+                        } else if (signal.IceCandidate) {
+                            await peerConnection.addIceCandidate({
+                                candidate: signal.IceCandidate.candidate,
+                                sdpMid: signal.IceCandidate.sdp_mid,
+                                sdpMLineIndex: signal.IceCandidate.sdp_mline_index
+                            });
+                            log('debug', '添加 ICE 候选完成');
+                        } else if (signal.Error) {
+                            log('error', `服务器错误: ${signal.Error.message}`);
+                        }
+                    } catch (error) {
+                        log('error', `处理信令失败: ${error.message}`);
+                    }
+                };
+
+                websocket.onerror = (error) => {
+                    log('error', `WebSocket 错误: ${error}`);
+                };
+
+                websocket.onclose = () => {
+                    log('info', 'WebSocket 连接已关闭');
+                    updateStatus('disconnected');
+                };
+
+                // 创建 RTCPeerConnection
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' }
+                    ]
+                });
+
+                peerConnection.ontrack = (event) => {
+                    log('info', '接收到远程媒体流');
+                    const videoElement = document.getElementById('videoElement');
+                    videoElement.srcObject = event.streams[0];
+                    updateStatus('connected');
+                };
+
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        const signal = {
+                            IceCandidate: {
+                                candidate: event.candidate.candidate,
+                                sdp_mid: event.candidate.sdpMid,
+                                sdp_mline_index: event.candidate.sdpMLineIndex
+                            }
+                        };
+                        websocket.send(JSON.stringify(signal));
+                        log('debug', '发送 ICE 候选');
+                    }
+                };
+
+                peerConnection.onconnectionstatechange = () => {
+                    log('info', `连接状态: ${peerConnection.connectionState}`);
+                };
+
+                // 创建 Offer
+                const offer = await peerConnection.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: true
+                });
+
+                await peerConnection.setLocalDescription(offer);
+
+                // 发送 Offer
+                const signal = {
+                    Offer: {
+                        stream_key: streamKey,
+                        sdp: offer.sdp
+                    }
+                };
+                
+                // 等待 WebSocket 连接建立
+                if (websocket.readyState === WebSocket.CONNECTING) {
+                    websocket.addEventListener('open', () => {
+                        websocket.send(JSON.stringify(signal));
+                        log('debug', '发送 Offer');
+                    });
+                } else {
+                    websocket.send(JSON.stringify(signal));
+                    log('debug', '发送 Offer');
+                }
+
+            } catch (error) {
+                log('error', `WebRTC 连接失败: ${error.message}`);
+                updateStatus('disconnected');
+            }
+        }
+
+        function connectHLS() {
+            const streamKey = document.getElementById('streamKey').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+            const hlsUrl = `${serverUrl.replace('ws', 'http').replace('/ws', '')}/hls/${streamKey}/playlist.m3u8`;
+            
+            log('info', `连接 HLS: ${hlsUrl}`);
+            updateStatus('connecting');
+            
+            const videoElement = document.getElementById('videoElement');
+            videoElement.src = hlsUrl;
+            
+            videoElement.onloadstart = () => {
+                log('info', 'HLS 开始加载');
+                updateStatus('connected');
+            };
+            
+            videoElement.onerror = (error) => {
+                log('error', `HLS 播放错误: ${error}`);
+                updateStatus('disconnected');
+            };
+        }
+
+        function disconnect() {
+            log('info', '断开连接...');
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+            
+            const videoElement = document.getElementById('videoElement');
+            videoElement.srcObject = null;
+            videoElement.src = '';
+            
+            updateStatus('disconnected');
+            isConnected = false;
+            document.getElementById('connectBtn').textContent = '连接';
+        }
+
+        function toggleConnection() {
+            if (isConnected) {
+                disconnect();
+            } else {
+                const protocol = document.getElementById('protocol').value;
+                if (protocol === 'webrtc') {
+                    connectWebRTC();
+                } else {
+                    connectHLS();
+                }
+                isConnected = true;
+                document.getElementById('connectBtn').textContent = '断开';
+            }
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            log('info', '页面加载完成，准备就绪');
+        });
+    </script>
+</body>
+</html>
